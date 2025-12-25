@@ -1,0 +1,162 @@
+import { useState } from "react";
+import { Download, DollarSign, Bell, Calculator } from "lucide-react";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getSettings, saveSettings, exportToCSV } from "@/lib/storage";
+import { CURRENCIES } from "@/types/subscription";
+import { toast } from "sonner";
+
+export default function SettingsPage() {
+  const [settings, setSettings] = useState(getSettings());
+
+  const handleCurrencyChange = (currency: string) => {
+    const updated = saveSettings({ defaultCurrency: currency });
+    setSettings(updated);
+    toast.success("Default currency updated");
+  };
+
+  const handleReminderDaysChange = (days: string) => {
+    const updated = saveSettings({ defaultReminderDays: parseInt(days) });
+    setSettings(updated);
+    toast.success("Default reminder days updated");
+  };
+
+  const handleTrialsToggle = (checked: boolean) => {
+    const updated = saveSettings({ includeTrialsInTotal: checked });
+    setSettings(updated);
+    toast.success(checked ? "Trials included in monthly total" : "Trials excluded from monthly total");
+  };
+
+  const handleExport = () => {
+    const csv = exportToCSV();
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `subscription-squeeze-export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Data exported successfully");
+  };
+
+  return (
+    <PageContainer title="Settings" subtitle="Customize your experience">
+      <div className="space-y-6 animate-fade-in">
+        {/* Default Currency */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <DollarSign className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="currency" className="text-base font-medium text-foreground">
+                Default Currency
+              </Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Used when adding new subscriptions
+              </p>
+              <Select value={settings.defaultCurrency} onValueChange={handleCurrencyChange}>
+                <SelectTrigger id="currency" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Default Reminder */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Bell className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="reminder" className="text-base font-medium text-foreground">
+                Default Reminder
+              </Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Days before renewal to remind you
+              </p>
+              <Select value={settings.defaultReminderDays.toString()} onValueChange={handleReminderDaysChange}>
+                <SelectTrigger id="reminder" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Same day</SelectItem>
+                  <SelectItem value="1">1 day before</SelectItem>
+                  <SelectItem value="3">3 days before</SelectItem>
+                  <SelectItem value="7">7 days before</SelectItem>
+                  <SelectItem value="14">14 days before</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Include Trials */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Calculator className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="trials" className="text-base font-medium text-foreground">
+                    Include Trials in Total
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Count trial subscriptions in monthly total
+                  </p>
+                </div>
+                <Switch
+                  id="trials"
+                  checked={settings.includeTrialsInTotal}
+                  onCheckedChange={handleTrialsToggle}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Export */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Download className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <Label className="text-base font-medium text-foreground">
+                Export Data
+              </Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Download all your subscriptions as a CSV file
+              </p>
+              <Button onClick={handleExport} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                Export to CSV
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* App Info */}
+        <div className="text-center text-sm text-muted-foreground pt-4">
+          <p className="font-medium text-foreground mb-1">Subscription Squeeze</p>
+          <p>Track subscriptions. Avoid surprises.</p>
+          <p className="mt-2">Version 1.0.0</p>
+        </div>
+      </div>
+    </PageContainer>
+  );
+}
