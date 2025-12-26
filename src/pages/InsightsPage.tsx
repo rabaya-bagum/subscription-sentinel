@@ -4,6 +4,7 @@ import { TrendingUp, AlertTriangle, CheckCircle, XCircle, SkipForward } from "lu
 import { YearlyProjection } from "@/components/insights/YearlyProjection";
 import { SpendingTrendsChart } from "@/components/insights/SpendingTrendsChart";
 import { YearOverYearComparison } from "@/components/insights/YearOverYearComparison";
+import { SavingsCalculator } from "@/components/insights/SavingsCalculator";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { SubscriptionCard } from "@/components/subscription/SubscriptionCard";
 import { EmptyState } from "@/components/subscription/EmptyState";
@@ -60,6 +61,9 @@ export default function InsightsPage() {
 
         {/* Year-over-Year Comparison */}
         <YearOverYearComparison />
+
+        {/* Savings Calculator */}
+        <SavingsCalculator />
 
         {/* Yearly Projection */}
         <YearlyProjection />
