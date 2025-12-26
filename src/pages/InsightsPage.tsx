@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { TrendingUp, AlertTriangle, CheckCircle, XCircle, SkipForward } from "lucide-react";
 import { YearlyProjection } from "@/components/insights/YearlyProjection";
+import { SpendingTrendsChart } from "@/components/insights/SpendingTrendsChart";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { SubscriptionCard } from "@/components/subscription/SubscriptionCard";
 import { EmptyState } from "@/components/subscription/EmptyState";
@@ -53,6 +54,9 @@ export default function InsightsPage() {
   return (
     <PageContainer title="Insights" subtitle="Understand your spending">
       <div className="space-y-6 animate-fade-in">
+        {/* Spending Trends Chart */}
+        <SpendingTrendsChart />
+
         {/* Yearly Projection */}
         <YearlyProjection />
 
