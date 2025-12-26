@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Download, DollarSign, Bell, Calculator } from "lucide-react";
+import { Download, DollarSign, Bell, Calculator, Database, Trash2 } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { getSettings, saveSettings, exportToCSV } from "@/lib/storage";
+import { seedDemoData, clearAllData } from "@/lib/seedData";
 import { CURRENCIES } from "@/types/subscription";
 import { toast } from "sonner";
 
@@ -146,6 +148,81 @@ export default function SettingsPage() {
                 <Download className="h-4 w-4" />
                 Export to CSV
               </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Demo Data Section */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <Database className="h-5 w-5 text-accent" />
+            </div>
+            <div className="flex-1">
+              <Label className="text-base font-medium text-foreground">
+                Demo Data
+              </Label>
+              <p className="text-sm text-muted-foreground mb-3">
+                Seed sample data to explore all features (2 years of history)
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <Database className="h-4 w-4" />
+                      Load Demo Data
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Load Demo Data?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will replace all existing data with 24 sample subscriptions, usage history, and events spanning 2 years. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => {
+                        const result = seedDemoData();
+                        toast.success(`Loaded ${result.subscriptions} subscriptions, ${result.events} events, ${result.usageChecks} usage checks`);
+                        window.location.reload();
+                      }}>
+                        Load Demo Data
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                      Clear All Data
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear All Data?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all subscriptions, events, and usage checks. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => {
+                          clearAllData();
+                          toast.success("All data cleared");
+                          window.location.reload();
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Clear All
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           </div>
         </div>
