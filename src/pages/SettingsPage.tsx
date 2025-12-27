@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Download, DollarSign, Bell, Calculator, Database, Trash2 } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Download, DollarSign, Bell, Calculator, Database, Trash2, Moon, Sun } from "lucide-react";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(getSettings());
+  const { theme, setTheme } = useTheme();
 
   const handleCurrencyChange = (currency: string) => {
     const updated = saveSettings({ defaultCurrency: currency });
@@ -49,6 +51,39 @@ export default function SettingsPage() {
   return (
     <PageContainer title="Settings" subtitle="Customize your experience">
       <div className="space-y-6 animate-fade-in">
+        {/* Theme Toggle */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              {theme === 'dark' ? (
+                <Moon className="h-5 w-5 text-primary" />
+              ) : (
+                <Sun className="h-5 w-5 text-primary" />
+              )}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="theme" className="text-base font-medium text-foreground">
+                    Dark Mode
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Switch between light and dark themes
+                  </p>
+                </div>
+                <Switch
+                  id="theme"
+                  checked={theme === 'dark'}
+                  onCheckedChange={(checked) => {
+                    setTheme(checked ? 'dark' : 'light');
+                    toast.success(checked ? 'Dark mode enabled' : 'Light mode enabled');
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Default Currency */}
         <div className="bg-card rounded-xl border border-border p-4">
           <div className="flex items-start gap-3">
