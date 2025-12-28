@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
-import { Subscription, SubscriptionStatus, SubscriptionCadence, SubscriptionCategory, CURRENCIES, CATEGORIES, CADENCES, STATUSES } from "@/types/subscription";
-import { getSettings, saveSubscription, updateSubscription, getSubscriptions } from "@/lib/storage";
+import { Subscription, SubscriptionStatus, SubscriptionCadence, SubscriptionCategory, CURRENCIES, CATEGORIES, CADENCES, STATUSES, SharedMember } from "@/types/subscription";
+import { getSettings, saveSubscription, updateSubscription, getSubscriptions, getPaymentMethods } from "@/lib/storage";
+import { SubscriptionTemplate } from "@/lib/subscriptionTemplates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,38 +13,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SharedMembersInput } from "@/components/subscription/SharedMembersInput";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface SubscriptionFormProps {
   subscription?: Subscription;
+  template?: SubscriptionTemplate | null;
   onClose?: () => void;
 }
 
-export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProps) {
+export function SubscriptionForm({ subscription, template, onClose }: SubscriptionFormProps) {
   const navigate = useNavigate();
   const settings = getSettings();
+  const paymentMethods = getPaymentMethods();
   const isEdit = !!subscription;
 
-  const [name, setName] = useState(subscription?.name || "");
-  const [amount, setAmount] = useState(subscription?.amount?.toString() || "");
-  const [currency, setCurrency] = useState(subscription?.currency || settings.defaultCurrency);
-  const [cadence, setCadence] = useState<SubscriptionCadence>(subscription?.cadence || "monthly");
+  const [name, setName] = useState(subscription?.name || template?.name || "");
+  const [amount, setAmount] = useState(subscription?.amount?.toString() || template?.defaultAmount?.toString() || "");
+  const [currency, setCurrency] = useState(subscription?.currency || template?.defaultCurrency || settings.defaultCurrency);
+  const [cadence, setCadence] = useState<SubscriptionCadence>(subscription?.cadence || template?.cadence || "monthly");
   const [customDays, setCustomDays] = useState(subscription?.customDays?.toString() || "");
   const [nextRenewalDate, setNextRenewalDate] = useState<Date | undefined>(
     subscription?.nextRenewalDate ? new Date(subscription.nextRenewalDate) : undefined
   );
-  const [category, setCategory] = useState<SubscriptionCategory>(subscription?.category || "other");
+  const [category, setCategory] = useState<SubscriptionCategory>(subscription?.category || template?.category || "other");
   const [status, setStatus] = useState<SubscriptionStatus>(subscription?.status || "active");
   const [reminderEnabled, setReminderEnabled] = useState(subscription?.reminderEnabled ?? true);
   const [reminderDaysBefore, setReminderDaysBefore] = useState(
     subscription?.reminderDaysBefore?.toString() || settings.defaultReminderDays.toString()
   );
   const [notes, setNotes] = useState(subscription?.notes || "");
-  const [cancelUrl, setCancelUrl] = useState(subscription?.cancelUrl || "");
+  const [cancelUrl, setCancelUrl] = useState(subscription?.cancelUrl || template?.cancelUrl || "");
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [sharedWith, setSharedWith] = useState<SharedMember[]>(subscription?.sharedWith || []);
+  const [paymentMethodId, setPaymentMethodId] = useState<string>(subscription?.paymentMethodId || "");
 
-  // Check for duplicates
   useEffect(() => {
     if (name.trim()) {
       const existing = getSubscriptions();
@@ -59,7 +64,6 @@ export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     if (!name.trim()) {
       toast.error("Name is required");
       return;
@@ -91,6 +95,8 @@ export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProp
       reminderDaysBefore: parseInt(reminderDaysBefore) || settings.defaultReminderDays,
       notes: notes.trim(),
       cancelUrl: cancelUrl.trim(),
+      sharedWith: sharedWith.length > 0 ? sharedWith : undefined,
+      paymentMethodId: paymentMethodId || undefined,
     };
 
     if (isEdit && subscription) {
@@ -112,7 +118,7 @@ export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProp
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-foreground">
-          {isEdit ? "Edit Subscription" : "Add Subscription"}
+          {isEdit ? "Edit Subscription" : template ? `Add ${template.name}` : "Add Subscription"}
         </h2>
         {onClose && (
           <Button type="button" variant="ghost" size="icon" onClick={onClose}>
@@ -122,154 +128,98 @@ export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProp
       </div>
 
       <div className="space-y-4">
-        {/* Name */}
         <div className="space-y-2">
           <Label htmlFor="name">Name *</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Netflix, Spotify, etc."
-          />
-          {duplicateWarning && (
-            <p className="text-xs text-warning">{duplicateWarning}</p>
-          )}
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Netflix, Spotify, etc." />
+          {duplicateWarning && <p className="text-xs text-warning">{duplicateWarning}</p>}
         </div>
 
-        {/* Amount & Currency */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="amount">Amount *</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-            />
+            <Input id="amount" type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="currency">Currency</Label>
             <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
 
-        {/* Cadence */}
         <div className="space-y-2">
           <Label>Cadence</Label>
           <Select value={cadence} onValueChange={(v) => setCadence(v as SubscriptionCadence)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CADENCES.map((c) => (
-                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-              ))}
-            </SelectContent>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>{CADENCES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
 
-        {/* Custom Days */}
         {cadence === "custom" && (
           <div className="space-y-2">
             <Label htmlFor="customDays">Every X days</Label>
-            <Input
-              id="customDays"
-              type="number"
-              min="1"
-              value={customDays}
-              onChange={(e) => setCustomDays(e.target.value)}
-              placeholder="30"
-            />
+            <Input id="customDays" type="number" min="1" value={customDays} onChange={(e) => setCustomDays(e.target.value)} placeholder="30" />
           </div>
         )}
 
-        {/* Next Renewal Date */}
         <div className="space-y-2">
           <Label>Next Renewal Date *</Label>
           <Popover>
             <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !nextRenewalDate && "text-muted-foreground"
-                )}
-              >
+              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !nextRenewalDate && "text-muted-foreground")}>
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {nextRenewalDate ? format(nextRenewalDate, "PPP") : "Pick a date"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={nextRenewalDate}
-                onSelect={setNextRenewalDate}
-                initialFocus
-                className="pointer-events-auto"
-              />
+              <Calendar mode="single" selected={nextRenewalDate} onSelect={setNextRenewalDate} initialFocus className="pointer-events-auto" />
             </PopoverContent>
           </Popover>
         </div>
 
-        {/* Category & Status */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Category</Label>
             <Select value={category} onValueChange={(v) => setCategory(v as SubscriptionCategory)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Label>Status</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as SubscriptionStatus)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         </div>
 
-        {/* Reminder */}
+        {paymentMethods.length > 0 && (
+          <div className="space-y-2">
+            <Label>Payment Method</Label>
+            <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+              <SelectTrigger><SelectValue placeholder="Select payment method" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {paymentMethods.map((pm) => <SelectItem key={pm.id} value={pm.id}>{pm.name}{pm.lastFour && ` •••• ${pm.lastFour}`}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <SharedMembersInput members={sharedWith} onChange={setSharedWith} totalAmount={parseFloat(amount) || 0} currency={currency} />
+
         <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
           <div className="flex items-center justify-between">
             <Label htmlFor="reminder" className="cursor-pointer">Enable Reminder</Label>
-            <Switch
-              id="reminder"
-              checked={reminderEnabled}
-              onCheckedChange={setReminderEnabled}
-            />
+            <Switch id="reminder" checked={reminderEnabled} onCheckedChange={setReminderEnabled} />
           </div>
           {reminderEnabled && (
             <div className="space-y-2">
               <Label htmlFor="reminderDays">Days before renewal</Label>
               <Select value={reminderDaysBefore} onValueChange={setReminderDaysBefore}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">Same day</SelectItem>
                   <SelectItem value="1">1 day</SelectItem>
@@ -282,28 +232,14 @@ export function SubscriptionForm({ subscription, onClose }: SubscriptionFormProp
           )}
         </div>
 
-        {/* Notes */}
         <div className="space-y-2">
           <Label htmlFor="notes">Notes</Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any additional notes..."
-            rows={3}
-          />
+          <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional notes..." rows={3} />
         </div>
 
-        {/* Cancel URL */}
         <div className="space-y-2">
           <Label htmlFor="cancelUrl">Cancel URL</Label>
-          <Input
-            id="cancelUrl"
-            type="url"
-            value={cancelUrl}
-            onChange={(e) => setCancelUrl(e.target.value)}
-            placeholder="https://..."
-          />
+          <Input id="cancelUrl" type="url" value={cancelUrl} onChange={(e) => setCancelUrl(e.target.value)} placeholder="https://..." />
         </div>
       </div>
 
