@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,10 +14,24 @@ import CalendarPage from "./pages/CalendarPage";
 import InsightsPage from "./pages/InsightsPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import { advanceRenewalDates } from "@/lib/storage";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+// Auto-advance renewal dates on app load
+const useAutoAdvanceRenewals = () => {
+  useEffect(() => {
+    const advanced = advanceRenewalDates();
+    if (advanced > 0) {
+      console.log(`Auto-advanced ${advanced} subscription renewal date(s)`);
+    }
+  }, []);
+};
+
+const App = () => {
+  useAutoAdvanceRenewals();
+  
+  return (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -38,6 +53,7 @@ const App = () => (
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
-);
+  );
+};
 
 export default App;

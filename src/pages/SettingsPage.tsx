@@ -11,6 +11,8 @@ import { getSettings, saveSettings, exportToCSV } from "@/lib/storage";
 import { seedDemoData, clearAllData } from "@/lib/seedData";
 import { CURRENCIES } from "@/types/subscription";
 import { toast } from "sonner";
+import { PaymentMethods } from "@/components/settings/PaymentMethods";
+import { ImportCSV } from "@/components/settings/ImportCSV";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(getSettings());
@@ -165,6 +167,12 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Payment Methods */}
+        <PaymentMethods />
+
+        {/* Import CSV */}
+        <ImportCSV />
 
         {/* Export */}
         <div className="bg-card rounded-xl border border-border p-4">
