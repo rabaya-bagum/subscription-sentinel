@@ -13,6 +13,7 @@ import { CURRENCIES } from "@/types/subscription";
 import { toast } from "sonner";
 import { PaymentMethods } from "@/components/settings/PaymentMethods";
 import { ImportCSV } from "@/components/settings/ImportCSV";
+import { BudgetSettings } from "@/components/settings/BudgetSettings";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState(getSettings());
@@ -141,6 +142,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Budget & Alerts */}
+        <BudgetSettings />
 
         {/* Include Trials */}
         <div className="bg-card rounded-xl border border-border p-4">

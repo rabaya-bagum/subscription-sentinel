@@ -60,12 +60,18 @@ export interface AppSettings {
   defaultCurrency: string;
   defaultReminderDays: number;
   includeTrialsInTotal: boolean;
+  monthlyBudgetLimit?: number;
+  budgetAlertThreshold: number; // Percentage (e.g., 80 = warn at 80%)
+  trialExpirationDays: number; // Warn when trial ends within X days
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultCurrency: 'CAD',
   defaultReminderDays: 3,
   includeTrialsInTotal: true,
+  monthlyBudgetLimit: undefined,
+  budgetAlertThreshold: 80,
+  trialExpirationDays: 7,
 };
 
 export const CURRENCIES = ['CAD', 'USD', 'EUR', 'GBP', 'AUD', 'JPY', 'INR'];
