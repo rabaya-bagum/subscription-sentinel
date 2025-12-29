@@ -1,18 +1,22 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Calendar, TrendingUp, ArrowRight } from "lucide-react";
-import { differenceInDays, parseISO, addDays } from "date-fns";
+import { differenceInDays, parseISO, addDays, subDays } from "date-fns";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { SubscriptionCard } from "@/components/subscription/SubscriptionCard";
 import { EmptyState } from "@/components/subscription/EmptyState";
 import { Button } from "@/components/ui/button";
-import { getSubscriptions, getSettings, getMonthlyEquivalent, formatCurrency } from "@/lib/storage";
+import { BudgetAlert } from "@/components/alerts/BudgetAlert";
+import { PriceChangeAlert } from "@/components/alerts/PriceChangeAlert";
+import { TrialExpirationAlert } from "@/components/alerts/TrialExpirationAlert";
+import { getSubscriptions, getSettings, getMonthlyEquivalent, formatCurrency, getEvents } from "@/lib/storage";
 
 export default function HomePage() {
   const subscriptions = getSubscriptions();
   const settings = getSettings();
+  const events = getEvents();
 
-  const { monthlyTotal, upcomingRenewals, currencyTotals } = useMemo(() => {
+  const { monthlyTotal, upcomingRenewals, currencyTotals, expiringTrials, recentPriceChanges } = useMemo(() => {
     const activeOrTrial = subscriptions.filter(
       s => s.status === 'active' || (settings.includeTrialsInTotal && s.status === 'trial')
     );
@@ -26,6 +30,7 @@ export default function HomePage() {
 
     const today = new Date();
     const sevenDaysLater = addDays(today, 7);
+    const thirtyDaysAgo = subDays(today, 30);
     
     const upcoming = subscriptions
       .filter(s => {
@@ -36,6 +41,37 @@ export default function HomePage() {
       })
       .sort((a, b) => parseISO(a.nextRenewalDate).getTime() - parseISO(b.nextRenewalDate).getTime());
 
+    // Find trials expiring within settings.trialExpirationDays
+    const trials = subscriptions
+      .filter(s => {
+        if (s.status !== 'trial') return false;
+        const renewalDate = parseISO(s.nextRenewalDate);
+        const daysUntil = differenceInDays(renewalDate, today);
+        return daysUntil >= 0 && daysUntil <= settings.trialExpirationDays;
+      })
+      .sort((a, b) => parseISO(a.nextRenewalDate).getTime() - parseISO(b.nextRenewalDate).getTime());
+
+    // Find price changes in last 30 days
+    const priceChangeEvents = events
+      .filter(e => {
+        if (e.type !== 'price_change') return false;
+        const eventDate = parseISO(e.timestamp);
+        return eventDate >= thirtyDaysAgo;
+      })
+      .map(e => {
+        const sub = subscriptions.find(s => s.id === e.subscriptionId);
+        if (!sub) return null;
+        const payload = JSON.parse(e.payloadJson);
+        return {
+          subscription: sub,
+          event: e,
+          from: payload.from as number,
+          to: payload.to as number,
+          isIncrease: payload.to > payload.from,
+        };
+      })
+      .filter(Boolean) as { subscription: typeof subscriptions[0]; event: typeof events[0]; from: number; to: number; isIncrease: boolean }[];
+
     // Main total in default currency
     const mainTotal = totals[settings.defaultCurrency] || 0;
 
@@ -43,10 +79,13 @@ export default function HomePage() {
       monthlyTotal: mainTotal,
       currencyTotals: totals,
       upcomingRenewals: upcoming,
+      expiringTrials: trials,
+      recentPriceChanges: priceChangeEvents,
     };
-  }, [subscriptions, settings]);
+  }, [subscriptions, settings, events]);
 
   const hasMultipleCurrencies = Object.keys(currencyTotals).length > 1;
+  const showBudgetAlert = settings.monthlyBudgetLimit && settings.monthlyBudgetLimit > 0;
 
   return (
     <PageContainer 
@@ -62,6 +101,33 @@ export default function HomePage() {
       }
     >
       <div className="space-y-6 animate-fade-in">
+        {/* Budget Alert */}
+        {showBudgetAlert && (
+          <BudgetAlert
+            currentSpending={monthlyTotal}
+            budgetLimit={settings.monthlyBudgetLimit!}
+            threshold={settings.budgetAlertThreshold}
+            currency={settings.defaultCurrency}
+            formatCurrency={formatCurrency}
+          />
+        )}
+
+        {/* Trial Expiration Alert */}
+        {expiringTrials.length > 0 && (
+          <TrialExpirationAlert 
+            trials={expiringTrials} 
+            formatCurrency={formatCurrency}
+          />
+        )}
+
+        {/* Price Change Alert */}
+        {recentPriceChanges.length > 0 && (
+          <PriceChangeAlert 
+            priceChanges={recentPriceChanges}
+            formatCurrency={formatCurrency}
+          />
+        )}
+
         {/* Monthly Total Card */}
         <div className="bg-primary text-primary-foreground rounded-2xl p-6 shadow-lg">
           <div className="flex items-start justify-between">
